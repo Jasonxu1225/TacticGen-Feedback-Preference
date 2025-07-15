@@ -193,7 +193,7 @@ videos.forEach((v, idx) => {
   const teamColor = teamType === 'attacking' ? 'red' : 'blue';
 
   // Generate the prompt with colored teamType
-  const promptText = `Which clip of post-event player trajectories for the <span style="color: ${teamColor};">${teamType}</span> team are better?<span class="asterisk">*</span>`;
+  const promptText = `Which clip of post-event player trajectories for the <span style="color: ${teamColor};">${teamType}</span> team is better?<span class="asterisk">*</span>`;
 
   const page = document.createElement('div');
   page.className = 'comparison-page';
