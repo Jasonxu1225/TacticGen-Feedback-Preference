@@ -60,9 +60,32 @@
 
 <!-- PAGE 2 – DESCRIPTION -->
 <div class="comparison-page" id="page2" style="display:none;">
+  <!-- ======== TASK DESCRIPTION (place inside page2) ======== -->
   <div class="task-description" style="max-width:800px;margin:0 auto;line-height:1.4;">
     <h2 style="margin-top:0;">Task overview</h2>
-    <p>You will watch a set of short football videos and give your preference.</p>
+    <p>You will watch a set of short football videos. Each video follows the same pattern:</p>
+
+    <ol style="padding-left:1.2em;">
+      <li><strong>Event context (10 frames)</strong> – real tracking data showing the ball and all 22 players’ <span style="font-style:italic;">x / y</span> positions for the 10 frames immediately before the on-ball event (pass, clearance, ball-touch, etc.).</li>
+      <li><strong>Post-event segment (<em>N</em> frames)</strong> – after the event occurs, the video continues to track the ball and all players until one of the following conditions is met: the next on-ball action occurs, the tracking data is completed, or the 64-frame limit is reached. The ball trajectory is always authentic, while the trajectories of the 22 players from two teams may either be derived from <strong>real tracking data</strong> or generated through <strong>AI adjustments to optimize the movement of one team (with the other team’s movements fixed to real tracking data)</strong>.</li>
+      <li><strong>Freeze frame</strong> – the final frame is held for ~3 s to let you inspect the ending.</li>
+    </ol>
+
+    <h3 style="margin-bottom:0.3em;">Additional notes</h3>
+    <ul style="padding-left:1.2em;">
+      <li>The attacking team always moves <strong>left&nbsp;→&nbsp;right</strong>.</li>
+      <li><strong>Sampling rate:</strong> player tracking is captured at 10 Hz, and videos are rendered at 5 fps, so <em>1 s of video equals 0.5 s of real-world play</em>.</li>
+      <li>The <strong>ball trajectory is always real</strong>. In some cases, there may be some disturbances of the ball due to data inaccuracies; please disregard these when making your assessment.</li>
+      <li>There are around <strong>50 pairs of clips</strong> shown in a random order (fixed seed).</li>
+      <li>We provide five clips from real tracking data to get you familiar with the animations here: <a href="https://drive.google.com/drive/folders/1gh5ASZhNjMZCnbaJyELWEDJHBkwrJZKJ?usp=sharing" target="_blank">Google Drive Folder</a>.</li>
+    </ul>
+
+    <h3 style="margin-bottom:0.3em;">Your task</h3>
+    <p>For each pair of videos, determine which clip of the <strong>post-event player movements for a given team (<span style="color:red;">attacking</span> or <span style="color:blue;">defending</span>)</strong> demonstrates <strong>better tactics and positioning strategy</strong>. Pleaset take <i>realism</i> as a <strong>least</strong> consideration in this task.</p>
+    <h3 style="margin-bottom:0.3em;">PS</h3>
+    <li>You may submit your responses after completing at least one comparison. Clicking the Submit button will record all of your already selected answers to the server at once. For convenience, you might choose to submit your responses every 5 or 10 events.</li>
+    <li>If you'd like to take a break and continue later, you're also welcome to temporarily submit your progress. For example, if you complete and submit feedback for the first 10 videos, you can return later and resume directly from page 11.</li>
+    <li>When clicking the submit button, it will require you to provide some simple feedback during your annotation progress.</li>
   </div>
 </div>
 
@@ -86,7 +109,7 @@
   <div style="background:#fff;padding:24px 22px;width:90%;max-width:480px;border-radius:8px;box-shadow:0 4px 18px #0004;">
     <h3 style="margin-top:0;">How did you make your decision?</h3>
     <p style="font-size:0.95em;margin-bottom:8px;">
-      Please summarize the main cues you relied on to select which side is better.
+      Please summarize the main cues you relied on to select the clip with better tactics and positioning strategy.
     </p>
     <textarea id="rationaleText" rows="6" style="width:100%;"></textarea>
     <div style="margin-top:18px;text-align:right;">
@@ -122,14 +145,27 @@ const guideDirs = [...attguideDirs, ...defguideDirs];
 const eventOf = f => f.split('_')[0];
 
 /* 2. BUILD VIDEO OBJECTS */
-const videos = guideDirs.map(dir => ({
-  id:    dir,
-  eventName: eventOf(dir),
-  genMp4 : `videos/guide_att/${dir}/Generated.mp4`,
-  gtMp4  : `videos/guide_att/${dir}/GroundTruth.mp4`,
-  genPdf : `videos/guide_att/${dir}/Generated.pdf`,
-  gtPdf  : `videos/guide_att/${dir}/GroundTruth.pdf`,
-}));
+const videos = guideDirs.map(dir => {
+  // Determine if event is attacking or defending
+  const teamType = defguideDirs.includes(dir) ? 'defending' : 'attacking';
+
+  // Set color for "attacking" and "defending"
+  const teamColor = teamType === 'attacking' ? 'red' : 'blue';
+
+  // Generate the prompt with colored teamType
+  const promptText = `Which clip looks better for the <span style="color: ${teamColor};">${teamType}</span> team?<span class="asterisk">*</span>`;
+
+  return {
+    id: dir,
+    eventName: eventOf(dir),
+    genMp4: `videos/guide_${teamType}/${dir}/Generated.mp4`,
+    gtMp4: `videos/guide_${teamType}/${dir}/GroundTruth.mp4`,
+    genPdf: `videos/guide_${teamType}/${dir}/Generated.pdf`,
+    gtPdf: `videos/guide_${teamType}/${dir}/GroundTruth.pdf`,
+    promptText: promptText,
+    teamType: teamType,
+  };
+});
 
 /* 3. DETERMINISTIC SHUFFLE */
 function mulberry32(seed){ return function(){ seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed>>>15, 1 | seed); t = t + Math.imul(t ^ t>>>7, 61 | t) ^ t; return ((t ^ t>>>14) >>> 0) / 4294967296; }; }
@@ -157,7 +193,7 @@ videos.forEach((v, idx) => {
   const teamColor = teamType === 'attacking' ? 'red' : 'blue';
 
   // Generate the prompt with colored teamType
-  const promptText = `Which side looks better for the <span style="color: ${teamColor};">${teamType}</span> team?<span class="asterisk">*</span>`;
+  const promptText = `Which clip of post-event player trajectories for the <span style="color: ${teamColor};">${teamType}</span> team are better?<span class="asterisk">*</span>`;
 
   const page = document.createElement('div');
   page.className = 'comparison-page';
@@ -252,7 +288,7 @@ async function submitFeedback(){
     const ans  = document.querySelector(`input[name="q${idx}"]:checked`)?.value || null;
     const conf = document.querySelector(`input[name="conf${idx}"]`)?.value.trim() || null;
     const comm = document.querySelector(`textarea[name="comments${idx}"]`)?.value.trim() || null;
-    const key = `${v.id}_leftIs_${v.leftLabel}`;
+    const key = `${v.id}_leftIs${v.leftLabel}_guide${v.teamType}`;
     responses[key] = { answer: ans, confidence: conf, comment: comm };
     if(ans !== null) answeredCount++;
   });
